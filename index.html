@@ -16,6 +16,9 @@
             height: 100vh;
             background-color: #000; /* Set background color to black */
             color: #fff; /* Set text color to white */
+            background-image: url("https://get.pxhere.com/photo/city-street-light-sky-automotive-lighting-road-surface-infrastructure-electricity-asphalt-lighting-architecture-thoroughfare-line-road-headlamp-midnight-tree-metropolitan-area-Tints-and-shades-darkness-Security-lighting-urban-area-lens-flare-electrical-supply-electric-blue-lane-public-utility-highway-evening-winter-street-overhead-power-line-light-fixture-track-building-symmetry-vehicle-nonbuilding-structure-night-car-plant-horizon-landscape-transport-freeway-traffic-downtown-rolling-1670520.jpg"); /* Replace 'background.jpg' with your image file name */
+            background-size: cover;
+            background-position: center;
         }
 
         h1 {
@@ -49,10 +52,26 @@
             cursor: pointer;
             border-radius: 5px;
             margin-top: 20px;
+            margin-left: -140px;
             transition: background-color 0.3s;
         }
 
         label:hover {
+            background-color: #2980b9;
+        }
+        label2 {
+            display: inline-block;
+            padding: 10px 15px;
+            background-color: #3498db;
+            color: #fff;
+            cursor: pointer;
+            border-radius: 5px;
+            margin-top: -38.7px;
+            margin-left: 140px;
+            transition: background-color 0.3s;
+        }
+
+        label2:hover {
             background-color: #2980b9;
         }
     </style>
@@ -61,22 +80,70 @@
     <h1>Traffic Light Detection</h1>
     <label for="uploadInput">Upload Image</label>
     <input id="uploadInput" type="file"/>
+    <label2 id="useWebcamBtn">Use Webcam</label2>
     <canvas></canvas>
     <script>
-        const input = document.getElementById("uploadInput");
-        input.addEventListener("change", async (event) => {
+        const uploadInput = document.getElementById("uploadInput");
+        const useWebcamBtn = document.getElementById("useWebcamBtn");
+    
+        uploadInput.addEventListener("change", (event) => {
             const file = event.target.files[0];
+            processImage(file);
+        });
+    
+        useWebcamBtn.addEventListener("click", () => {
+            captureFromWebcam();
+        });
+    
+        async function captureFromWebcam() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                const video = document.createElement("video");
+                video.srcObject = stream;
+                video.autoplay = true;
+                video.addEventListener("loadeddata", () => {
+                    const canvas = document.querySelector("canvas");
+                    const ctx = canvas.getContext("2d");
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    stream.getTracks().forEach(track => track.stop());
+                    const imageData = canvas.toDataURL("image/jpeg");
+                    const blobData = dataURItoBlob(imageData);
+                    const file = new File([blobData], "webcam_image.jpg", { type: "image/jpeg" });
+                    processImage(file);
+                });
+            } catch (error) {
+                console.error("Error accessing webcam:", error);
+            }
+        }
+    
+        function dataURItoBlob(dataURI) {
+            const byteString = atob(dataURI.split(",")[1]);
+            const mimeString = dataURI.split(",")[0].split(":")[1].split(";")[0];
+            const ab = new ArrayBuffer(byteString.length);
+            const ia = new Uint8Array(ab);
+            for (let i = 0; i < byteString.length; i++) {
+                ia[i] = byteString.charCodeAt(i);
+            }
+            return new Blob([ab], { type: mimeString });
+        }
+    
+        function processImage(file) {
             const data = new FormData();
             data.append("image_file", file, "image_file");
-            const response = await fetch("/detect", {
+            fetch("/detect", {
                 method: "post",
                 body: data,
-            });
-            const boxes = await response.json();
-            draw_image_and_boxes(file, boxes);
-            speakBasedOnLabel(boxes);
-        });
-
+            })
+            .then(response => response.json())
+            .then(boxes => {
+                draw_image_and_boxes(file, boxes);
+                speakBasedOnLabel(boxes);
+            })
+            .catch(error => console.error("Error processing image:", error));
+        }
+    
         function draw_image_and_boxes(file, boxes) {
             const img = new Image();
             img.src = URL.createObjectURL(file);
@@ -99,7 +166,7 @@
                 });
             }
         }
-
+    
         function speakBasedOnLabel(boxes) {
             boxes.forEach(([x1, y1, x2, y2, label]) => {
                 switch (label.toLowerCase()) {
@@ -118,12 +185,12 @@
                 }
             });
         }
-
+    
         function speak(text) {
             const synth = window.speechSynthesis;
             const utterance = new SpeechSynthesisUtterance(text);
             synth.speak(utterance);
         }
-    </script>
+    </script>    
 </body>
 </html>

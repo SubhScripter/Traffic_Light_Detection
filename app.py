@@ -35,7 +35,7 @@ def detect():
     )
 
 
-def detect_objects_on_image(buf):
+def detect_objects_on_image(img):
     """
     Function receives an image,
     passes it through YOLOv8 neural network
@@ -46,18 +46,14 @@ def detect_objects_on_image(buf):
     [[x1,y1,x2,y2,object_type,probability],..]
     """
     model = YOLO("best.pt")
-    results = model.predict(buf)
+    results = model.predict(img)
     result = results[0]
     output = []
     for box in result.boxes:
-        x1, y1, x2, y2 = [
-          round(x) for x in box.xyxy[0].tolist()
-        ]
+        x1, y1, x2, y2 = [round(x) for x in box.xyxy[0].tolist()]
         class_id = box.cls[0].item()
         prob = round(box.conf[0].item(), 2)
-        output.append([
-          x1, y1, x2, y2, result.names[class_id], prob
-        ])
+        output.append([x1, y1, x2, y2, result.names[class_id], prob])
     return output
 
 serve(app, host='0.0.0.0', port=8080)
